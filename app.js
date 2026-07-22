@@ -33,6 +33,81 @@ function frDow(date) {
   return new Intl.DateTimeFormat("fr-CH", { weekday: "long" }).format(date);
 }
 
+/* ---------- Estimation VO2max (formule de Daniels & Gilbert, VDOT) ---------- */
+/* Utilisée uniquement comme ordre de grandeur : calculée à partir de ta meilleure
+   performance chronométrée sur terrain plat, pas mesurée par un capteur. */
+
+function danielsVO2(distM, timeMin) {
+  const v = distM / timeMin; // m/min
+  const vo2 = -4.6 + 0.182258 * v + 0.000104 * v * v;
+  const pct = 0.8 + 0.1894393 * Math.exp(-0.012778 * timeMin) + 0.2989558 * Math.exp(-0.1932605 * timeMin);
+  return vo2 / pct;
+}
+function timeForVDOT(distM, targetVdot) {
+  let lo = 3, hi = 300;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (danielsVO2(distM, mid) > targetVdot) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+function formatMinTime(min) {
+  const totalS = Math.round(min * 60);
+  const h = Math.floor(totalS / 3600);
+  const m = Math.floor((totalS % 3600) / 60);
+  const s = totalS % 60;
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+}
+function bestVDOT() {
+  let best = null;
+  ACTIVITIES.forEach((a) => {
+    if (!RUNNING_SPORTS.has(a.sport) || a.distKm < 3) return;
+    if (a.elevGain / a.distKm > 15) return; // ne garder que les efforts sur terrain quasi plat
+    const vdot = danielsVO2(a.distKm * 1000, a.movingMin);
+    if (!best || vdot > best.vdot) best = { vdot, activity: a };
+  });
+  return best;
+}
+
+/* ---------- Modèle Fitness / Fatigue / Forme (Banister, comme Strava Summit / TrainingPeaks) ---------- */
+/* "Charge" journalière = Effort Relatif Strava (estimé quand absent). CTL (fitness) = moyenne
+   mobile exponentielle à 42j, ATL (fatigue) = à 7j, TSB (forme) = CTL - ATL. */
+
+const CTL_TAU = 42, ATL_TAU = 7;
+
+function dailyLoadMap() {
+  const map = {};
+  ACTIVITIES.forEach((a) => {
+    if (!RUNNING_SPORTS.has(a.sport)) return;
+    const load = a.effort != null ? a.effort : a.movingMin * 0.9 + a.elevGain * 0.05;
+    map[a.date] = (map[a.date] || 0) + load;
+  });
+  return map;
+}
+
+function computePMCRange(startDate, endDate, loadByISO, seed) {
+  let ctl = seed.ctl, atl = seed.atl;
+  const out = [];
+  let d = new Date(startDate);
+  while (d <= endDate) {
+    const iso = toISO(d);
+    const load = loadByISO[iso] || 0;
+    ctl += (load - ctl) / CTL_TAU;
+    atl += (load - atl) / ATL_TAU;
+    out.push({ date: new Date(d), ctl, atl, tsb: ctl - atl, load });
+    d = addDays(d, 1);
+  }
+  return out;
+}
+
+function tsbLabel(tsb) {
+  if (tsb < -20) return "fatigue élevée";
+  if (tsb < -5) return "en charge, fatigue normale";
+  if (tsb <= 10) return "équilibré";
+  if (tsb <= 25) return "frais, prêt à performer";
+  return "très frais (risque de perte de tonus si prolongé)";
+}
+
 /* ---------- Analyse ---------- */
 
 const ASOF = parseISO(ATHLETE.snapshotDate); // date de référence des stats (données figées à ce jour)
@@ -175,12 +250,75 @@ function drawRacePaceChart(canvas, laps) {
   ctx.fillText("min/km (barres)", padL + 70, padT + 8);
 }
 
+function drawPMCChart(canvas, series, todayIndex) {
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = 640, cssH = 190;
+  canvas.style.width = "100%";
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const isDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const padL = 34, padR = 10, padB = 18, padT = 10;
+  const plotW = cssW - padL - padR, plotH = cssH - padB - padT;
+  const stepX = plotW / (series.length - 1);
+  const allVals = series.flatMap((s) => [s.ctl, s.atl]);
+  const maxV = Math.max(...allVals) * 1.1;
+
+  const xOf = (i) => padL + i * stepX;
+  const yOf = (v) => padT + plotH - (v / maxV) * plotH;
+
+  ctx.strokeStyle = isDark ? "#34322d" : "#e5e3de";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT); ctx.lineTo(padL, cssH - padB); ctx.lineTo(cssW - padR, cssH - padB);
+  ctx.stroke();
+
+  // marqueur "aujourd'hui"
+  if (todayIndex != null) {
+    const x = xOf(todayIndex);
+    ctx.strokeStyle = isDark ? "#54514a" : "#c9c5bc";
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, cssH - padB); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawLine(key, color, dashAfter) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    series.forEach((s, i) => {
+      const x = xOf(i), y = yOf(s[key]);
+      if (dashAfter != null) ctx.setLineDash(i > dashAfter ? [4, 3] : []);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  drawLine("ctl", "#4c8a6b", todayIndex);
+  drawLine("atl", "#c1440e", todayIndex);
+
+  ctx.font = "10px -apple-system, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#4c8a6b"; ctx.fillText("Fitness (CTL)", padL, padT + 8);
+  ctx.fillStyle = "#c1440e"; ctx.fillText("Fatigue (ATL)", padL + 90, padT + 8);
+  ctx.fillStyle = isDark ? "#a8a49c" : "#6b6862";
+  ctx.textAlign = "center";
+  const labelEvery = Math.ceil(series.length / 8);
+  series.forEach((s, i) => {
+    if (i % labelEvery === 0 || i === series.length - 1) {
+      ctx.fillText(frDate(s.date, { day: "numeric", month: "numeric" }), xOf(i), cssH - 4);
+    }
+  });
+}
+
 /* ---------- Construction du DOM : onglet Forme ---------- */
 
 function renderForme() {
   const weeks = weeklyAggregates(ACTIVITIES.filter((a) => RUNNING_SPORTS.has(a.sport)), 16, ASOF);
   const last28 = sumWindow(ACTIVITIES.filter((a) => RUNNING_SPORTS.has(a.sport)), addDays(ASOF, -28), addDays(ASOF, 1));
-  const prev28 = sumWindow(ACTIVITIES.filter((a) => RUNNING_SPORTS.has(a.sport)), addDays(ASOF, -56), addDays(ASOF, -28));
 
   // Bloc final avant SZ 2024 (21 jours) vs bloc actuel (21 jours jusqu'à aujourd'hui)
   const block2024 = sumWindow(
@@ -271,6 +409,70 @@ function renderForme() {
     </div>
   `;
   drawRacePaceChart(document.getElementById("chart-race"), SZ_2024.laps);
+
+  renderAdvanced();
+}
+
+function renderAdvanced() {
+  // --- VO2max estimé (VDOT) ---
+  const best = bestVDOT();
+  const vdot = best.vdot;
+  const eq = [
+    ["5 km", 5000], ["10 km", 10000], ["Semi-marathon", 21097], ["Marathon", 42195],
+  ].map(([label, dist]) => ({ label, time: formatMinTime(timeForVDOT(dist, vdot)) }));
+
+  document.getElementById("vdot-card").innerHTML = `
+    <div class="tiles" style="margin-bottom:14px;">
+      <div class="tile"><div class="label">VDOT estimé</div><div class="value">${fmt1(vdot)}</div></div>
+      ${eq.map((e) => `<div class="tile"><div class="label">Équivalent ${e.label}</div><div class="value">${e.time}</div></div>`).join("")}
+    </div>
+    <div class="narrative">
+      <p>Calculé avec la formule de Daniels &amp; Gilbert (VDOT) à partir de ta meilleure performance chronométrée sur
+      terrain quasi plat : <strong>${fmt1(best.activity.distKm)} km en ${formatMinTime(best.activity.movingMin)}</strong>
+      (${frDate(parseISO(best.activity.date))}, ${fmt0(best.activity.elevGain)} m D+ seulement). C'est une estimation
+      indicative de ta capacité aérobie « à plat » — pas une mesure de laboratoire, et ça ne prédit pas ton temps sur
+      Sierre-Zinal (le terrain et le D+ changent tout : réfère-toi à ton résultat 2024 ci-dessus pour ça).</p>
+    </div>
+  `;
+
+  // --- Fitness / Fatigue / Forme (projection jusqu'au jour J par défaut) ---
+  const loadMap = dailyLoadMap();
+  const firstDate = parseISO(ACTIVITIES[0].date);
+  const dayBeforeAsof = addDays(ASOF, -1);
+  const hist = computePMCRange(firstDate, dayBeforeAsof, loadMap, { ctl: 0, atl: 0 });
+  const seed = hist[hist.length - 1];
+
+  const planLoadByISO = {};
+  PLAN_DATED.forEach((d) => { planLoadByISO[d.date] = d.estLoad; });
+  const raceDate = parseISO(RACE.defaultDateISO);
+  const proj = computePMCRange(ASOF, raceDate, planLoadByISO, { ctl: seed.ctl, atl: seed.atl });
+
+  const histWindow = hist.slice(-35); // 5 semaines d'historique affichées pour le contexte
+  const series = [...histWindow, ...proj];
+  const todayIndex = histWindow.length - 1;
+
+  drawPMCChart(document.getElementById("chart-pmc"), series, todayIndex);
+
+  const todayTSB = histWindow[histWindow.length - 1].tsb;
+  const eveOfRace = proj[proj.length - 2]; // veille de la course
+  const raceDay = proj[proj.length - 1];
+
+  document.getElementById("pmc-narrative").innerHTML = `
+    <div class="tiles" style="margin-bottom:14px;">
+      <div class="tile"><div class="label">Fitness (CTL) avant la séance du jour</div><div class="value">${fmt1(seed.ctl)}</div></div>
+      <div class="tile"><div class="label">Fatigue (ATL) avant la séance du jour</div><div class="value">${fmt1(seed.atl)}</div></div>
+      <div class="tile"><div class="label">Forme (TSB) avant la séance du jour</div><div class="value">${todayTSB >= 0 ? "+" : ""}${fmt1(todayTSB)}</div><div class="card-sub">${tsbLabel(todayTSB)}</div></div>
+      <div class="tile"><div class="label">Forme projetée la veille (${frDate(eveOfRace.date)})</div><div class="value">${eveOfRace.tsb >= 0 ? "+" : ""}${fmt1(eveOfRace.tsb)}</div><div class="card-sub">${tsbLabel(eveOfRace.tsb)}</div></div>
+    </div>
+    <p>Charge journalière = Effort Relatif Strava (estimé quand Strava ne le calcule pas). Fitness (CTL) = moyenne
+    mobile à 42 jours, Fatigue (ATL) = à 7 jours, Forme (TSB) = Fitness − Fatigue — le même principe que « Fitness &amp;
+    Freshness » de Strava ou le PMC de TrainingPeaks.</p>
+    <p><strong>Lecture :</strong> ta charge chronique (${fmt1(seed.ctl)}) reste basse parce que les 8 derniers mois ont
+    été peu chargés en course à pied — en 17 jours, elle ne peut pas monter beaucoup plus sans faire exploser la fatigue.
+    Le plan ci-contre t'amène à une forme projetée de ${eveOfRace.tsb >= 0 ? "+" : ""}${fmt1(eveOfRace.tsb)}
+    la veille de la course (${tsbLabel(eveOfRace.tsb)}) : c'est correct vu le temps disponible, mais n'attends pas une
+    fraîcheur exceptionnelle — priorité au respect des jours de repos du plan, ils comptent autant que les séances clés.</p>
+  `;
 }
 
 /* ---------- Onglet Plan ---------- */
