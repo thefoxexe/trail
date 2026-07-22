@@ -19,20 +19,25 @@ const TAGS = {
 
 // estLoad : charge journalière estimée (échelle "Effort Relatif" Strava) utilisée pour
 // projeter la trajectoire Fitness/Fatigue/Forme jusqu'au jour J (voir app.js : computePMC).
+//
+// Semaine du 20/07 mise à plat le 22/07 : retour de vacances, tête/jambes cuites — repos complet
+// toute la semaine plutôt que de forcer une séance clé sur une fatigue réelle (le gain serait nul
+// et le risque de blessure/maladie réel). Le bloc de qualité est décalé, plus dense, sur les 13
+// jours restants à partir du 27/07.
 const PLAN_DATED = [
-  { date: "2026-07-22", tag: TAGS.KEY, title: "Côtes courtes soutenues", estLoad: 85, detail: "Soirée : 15' échauffement + 8×2' montée soutenue (Z3-Z4, RPE 7/10), récup en descente marchée/trottinée + 15' retour au calme." },
-  { date: "2026-07-23", tag: TAGS.EASY, title: "Footing très facile ou repos", estLoad: 25, detail: "25-30' Z1-Z2 si les jambes sont fraîches, sinon repos. + 5-10' mobilité cheville/gainage." },
-  { date: "2026-07-24", tag: TAGS.GYM, title: "Salle de sport — renfo bas du corps + gainage", estLoad: 40, detail: "45-60' : squats/fentes/mollets modérés + gainage. Placée loin de la sortie longue de lundi pour ne pas la percuter." },
-  { date: "2026-07-25", tag: TAGS.FLEX, title: "Week-end libre", estLoad: 15, detail: "Pas de sortie longue ce week-end. Marche/vélo tranquille si l'envie, sinon repos — la sortie longue est décalée en semaine." },
-  { date: "2026-07-26", tag: TAGS.REST, title: "Repos", estLoad: 5, detail: "Repos ou activité très légère. Sommeil, hydratation." },
-  { date: "2026-07-27", tag: TAGS.KEY, title: "Sortie longue spécifique (le plus important du bloc)", estLoad: 170, detail: "Lundi soir (18h30, ~3h de jour) : 2h30-3h, D+1200-1500m. Allure « région course », marche active >20%, descente contrôlée (cheville)." },
-  { date: "2026-07-28", tag: TAGS.REST, title: "Récupération", estLoad: 10, detail: "Repos ou 30-40' très facile. Jambes lourdes normales après la sortie longue." },
-  { date: "2026-07-29", tag: TAGS.KEY, title: "Seuil contrôlé", estLoad: 75, detail: "15' échauffement + 3×8' allure soutenue mais contrôlée (Z3) sur faux plat/D+ modéré, 3' récup. Travaille la capacité à tenir un effort long sans t'effondrer en 2ème partie (point faible 2024 : fatigue nette à Chandolin-Zinal)." },
-  { date: "2026-07-30", tag: TAGS.EASY, title: "Footing facile + lignes droites", estLoad: 30, detail: "35-40' Z1-Z2 + 4-6×15'' accélérations progressives, relâchées." },
-  { date: "2026-07-31", tag: TAGS.GYM, title: "Salle de sport — renfo bas du corps + gainage", estLoad: 40, detail: "2ème séance salle de la semaine, 7 jours après la précédente. Fin du dernier bloc de charge réel." },
-  { date: "2026-08-01", tag: TAGS.FLEX, title: "Week-end libre", estLoad: 15, detail: "Pas de sortie longue. L'affûtage démarre." },
+  { date: "2026-07-22", tag: TAGS.REST, title: "Repos (retour de vacances)", estLoad: 0, detail: "Tête et jambes cuites : repos complet plutôt qu'une séance clé sans jus. Rien à prouver aujourd'hui." },
+  { date: "2026-07-23", tag: TAGS.REST, title: "Repos", estLoad: 0, detail: "Repos complet. Sommeil, hydratation, laisse la fatigue de vacances se dissiper." },
+  { date: "2026-07-24", tag: TAGS.REST, title: "Repos", estLoad: 0, detail: "Repos complet. Pas de gym cette semaine : elle reprendra la semaine prochaine." },
+  { date: "2026-07-25", tag: TAGS.FLEX, title: "Week-end libre", estLoad: 0, detail: "Repos, ou marche très légère si l'envie revient. Aucune obligation." },
+  { date: "2026-07-26", tag: TAGS.REST, title: "Repos", estLoad: 0, detail: "Dernier jour de récup avant de reprendre lundi. Si tu te sens bien, un footing très court et facile est possible, sans obligation." },
+  { date: "2026-07-27", tag: TAGS.KEY, title: "Côtes courtes soutenues (reprise)", estLoad: 75, detail: "Lundi soir : 15' échauffement + 8×2' montée soutenue (Z3-Z4), récup en descente marchée + 15' retour au calme. Reprise en douceur après une semaine de coupure totale." },
+  { date: "2026-07-28", tag: TAGS.EASY, title: "Footing très facile", estLoad: 25, detail: "25-30' Z1-Z2 + 5-10' mobilité cheville/gainage." },
+  { date: "2026-07-29", tag: TAGS.GYM, title: "Salle de sport — renfo bas du corps + gainage", estLoad: 40, detail: "45-60' : squats/fentes/mollets modérés + gainage. Placée avant la sortie longue de jeudi, pas juste avant." },
+  { date: "2026-07-30", tag: TAGS.KEY, title: "Sortie longue spécifique (le plus important du bloc)", estLoad: 150, detail: "Jeudi soir (18h30, ~3h de jour) : 2h-2h30, D+1000-1300m. Allure « région course », marche active >20%, descente contrôlée (cheville). Volume légèrement réduit vu le temps de prépa compressé." },
+  { date: "2026-07-31", tag: TAGS.REST, title: "Récupération", estLoad: 10, detail: "Repos ou 30' très facile. Jambes lourdes normales après la sortie longue." },
+  { date: "2026-08-01", tag: TAGS.FLEX, title: "Week-end libre", estLoad: 15, detail: "Pas de sortie longue ce week-end. L'affûtage démarre déjà, vu le peu de jours restants." },
   { date: "2026-08-02", tag: TAGS.REST, title: "Repos", estLoad: 5, detail: "Repos ou marche très facile." },
-  { date: "2026-08-03", tag: TAGS.KEY, title: "Dernière sortie avec D+ (contrôlée)", estLoad: 65, detail: "Soirée : 1h15-1h30, D+ 500-700m, allure conversationnelle du début à la fin. Aucune recherche de perf." },
+  { date: "2026-08-03", tag: TAGS.KEY, title: "Dernière touche qualité (courte)", estLoad: 50, detail: "Soirée : 15' échauffement + 2×6' allure soutenue contrôlée (Z3), 3' récup + retour au calme. Rappel court, pas une séance à rallonge : l'affûtage prime." },
   { date: "2026-08-04", tag: TAGS.GYM, title: "Salle de sport (version allégée)", estLoad: 15, detail: "Gainage + mobilité uniquement, pas de charge lourde : on garde l'habitude hebdomadaire sans percuter l'affûtage." },
   { date: "2026-08-05", tag: TAGS.EASY, title: "Footing très facile (J-3)", estLoad: 10, detail: "20-25' Z1 + 4 lignes droites progressives. Zéro fatigue à la sortie." },
   { date: "2026-08-06", tag: TAGS.REST, title: "Repos complet (J-2)", estLoad: 0, detail: "Sommeil, hydratation. Augmente légèrement les glucides." },
