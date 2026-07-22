@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ma forme &amp; plan Sierre-Zinal</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏔️</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div>
+        <h1>Bastien — Sierre-Zinal 2026</h1>
+        <div class="sub">Analyse de forme (Strava) &amp; plan d'entraînement</div>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="active" data-target="panel-forme">Ta forme actuelle</button>
+      <button data-target="panel-plan">Plan Sierre-Zinal</button>
+    </nav>
+
+    <section id="panel-forme" class="panel active">
+      <div id="tiles" class="tiles"></div>
+
+      <div class="card">
+        <h2>Volume hebdomadaire — course à pied</h2>
+        <div class="card-sub">16 dernières semaines · couleur = intensité moyenne de la semaine</div>
+        <div class="chart-scroll"><canvas id="chart-km"></canvas></div>
+        <div class="legend">
+          <span><i style="background:#b7d8c9"></i>très facile</span>
+          <span><i style="background:#7fb8a0"></i>facile</span>
+          <span><i style="background:#e8b750"></i>modéré</span>
+          <span><i style="background:#d97a3f"></i>soutenu</span>
+          <span><i style="background:#b8432f"></i>très soutenu</span>
+          <span><i style="background:#9a958c"></i>effort non calculé</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>D+ hebdomadaire — course à pied</h2>
+        <div class="card-sub">16 dernières semaines, en mètres</div>
+        <div class="chart-scroll"><canvas id="chart-elev"></canvas></div>
+      </div>
+
+      <div class="card narrative" id="narrative"></div>
+
+      <div class="card">
+        <h2>Dernières sorties</h2>
+        <table class="sessions">
+          <thead><tr><th>Date</th><th>Sortie</th><th>Distance</th><th>D+</th><th>Effort</th><th>Note</th></tr></thead>
+          <tbody id="recent-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Sierre-Zinal 2024 — ta référence directe</h2>
+        <div class="card-sub">Même course, mêmes montées : la meilleure base pour caler la stratégie de course 2026</div>
+        <div id="race-summary"></div>
+      </div>
+    </section>
+
+    <section id="panel-plan" class="panel">
+      <div class="race-config">
+        <label for="race-date">Date de la course</label>
+        <input type="date" id="race-date" />
+        <span id="countdown" class="countdown"></span>
+      </div>
+      <div class="card">
+        <h2>Plan jour par jour</h2>
+        <div class="card-sub">Construit à partir de ta charge récente et de tes données Sierre-Zinal 2024 — s'affûte automatiquement à l'approche de la course</div>
+        <div class="legend" style="margin-bottom:14px;">
+          <span><i style="background:#c1440e"></i>séance clé</span>
+          <span><i style="background:#4c8a6b"></i>facile</span>
+          <span><i style="background:#9a958c"></i>repos</span>
+          <span><i style="background:#6b8fb8"></i>libre / tennis</span>
+          <span><i style="background:#b8432f"></i>course</span>
+        </div>
+        <div id="plan-gap-note" class="card-sub" style="display:none; margin-bottom:12px;"></div>
+        <div id="plan-days" class="day-list"></div>
+      </div>
+    </section>
+
+    <footer class="note">Données Strava au 22/07/2026 — pour rafraîchir l'analyse, redemande une mise à jour avec les activités récentes.</footer>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="plan.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
