@@ -486,16 +486,28 @@ function buildPlanDays(raceDateISO) {
   if (raceDateISO === RACE.defaultDateISO) {
     return PLAN_DATED.map((d) => ({ ...d, date: parseISO(d.date) }));
   }
-  // Repli générique : reconstruit une fenêtre de 18 jours en remontant depuis la course,
+  // Repli générique : reconstruit une fenêtre en remontant depuis la course (longueur du gabarit),
   // en réutilisant le gabarit générique (cyclique si plus long que le gabarit).
   const n = PLAN_TEMPLATE_BY_DAYS_OUT.length;
   const days = [];
   for (let out = n - 1; out >= 0; out--) {
     const date = addDays(raceDate, -out);
     const tpl = PLAN_TEMPLATE_BY_DAYS_OUT[out % n];
-    days.push({ ...tpl, date });
+    days.push({ ...tpl, date, estLoad: tpl.estLoad ?? TAG_DEFAULT_LOAD[tpl.tag] });
   }
   return days;
+}
+
+/* ---------- Suivi manuel (case "fait") — persisté en local, pour que tu gères le plan toi-même ---------- */
+
+const DONE_STORAGE_KEY = "sz-plan-done";
+function getDoneMap() {
+  try { return JSON.parse(localStorage.getItem(DONE_STORAGE_KEY) || "{}"); } catch (e) { return {}; }
+}
+function setDone(iso, val) {
+  const map = getDoneMap();
+  if (val) map[iso] = true; else delete map[iso];
+  localStorage.setItem(DONE_STORAGE_KEY, JSON.stringify(map));
 }
 
 function renderPlan(raceDateISO) {
@@ -523,32 +535,45 @@ function renderPlan(raceDateISO) {
   }
 
   const todayISO = toISO(now);
+  const doneMap = getDoneMap();
   let html = "";
   let lastWeekStart = null;
   days.forEach((d) => {
+    const iso = toISO(d.date);
     const wStart = mondayOf(d.date);
     const wKey = toISO(wStart);
     if (wKey !== lastWeekStart) {
       lastWeekStart = wKey;
       html += `<div class="week-divider">Semaine du ${frDate(wStart, { day: "numeric", month: "long" })}</div>`;
     }
-    const isToday = toISO(d.date) === todayISO;
+    const isToday = iso === todayISO;
+    const isDone = !!doneMap[iso];
     html += `
-      <div class="day ${isToday ? "today" : ""}">
+      <div class="day ${isToday ? "today" : ""} ${isDone ? "done" : ""}">
         <div class="date-col"><span class="dow">${frDow(d.date)}</span>${frDate(d.date)}</div>
         <div class="bar ${d.tag}"></div>
         <div class="content">
-          <div class="title">${d.title}<span class="tagpill ${d.tag}">${tagLabel(d.tag)}</span></div>
+          <div class="title">
+            <label class="done-check"><input type="checkbox" class="day-check" data-date="${iso}" ${isDone ? "checked" : ""} /></label>
+            ${d.title}<span class="tagpill ${d.tag}">${tagLabel(d.tag)}</span>
+          </div>
           <div class="detail">${d.detail}</div>
         </div>
       </div>
     `;
   });
   document.getElementById("plan-days").innerHTML = html;
+
+  document.querySelectorAll(".day-check").forEach((cb) => {
+    cb.addEventListener("change", (e) => {
+      setDone(e.target.dataset.date, e.target.checked);
+      e.target.closest(".day").classList.toggle("done", e.target.checked);
+    });
+  });
 }
 
 function tagLabel(tag) {
-  return { key: "Clé", easy: "Facile", rest: "Repos", flex: "Libre", race: "Course" }[tag] || tag;
+  return { key: "Clé", easy: "Facile", gym: "Salle", rest: "Repos", flex: "Libre", race: "Course" }[tag] || tag;
 }
 
 /* ---------- Init ---------- */

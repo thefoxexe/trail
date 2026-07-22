@@ -13,6 +13,7 @@
   --z5: #b8432f;
   --key: #c1440e;
   --easy: #4c8a6b;
+  --gym: #7d5ba6;
   --rest: #9a958c;
   --flex: #6b8fb8;
   --race: #b8432f;
@@ -226,6 +227,11 @@ table.sessions td.note { white-space: normal; color: var(--text-dim); font-style
   border-radius: 10px;
 }
 .day.today { background: var(--accent-soft); }
+.day.done { opacity: 0.5; }
+.day.done .title { text-decoration: line-through; }
+
+.done-check { display: inline-flex; margin-right: 8px; position: relative; top: 2px; cursor: pointer; }
+.done-check input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
 
 .day .date-col { font-size: 0.8rem; color: var(--text-dim); padding-top: 2px; }
 .day .date-col .dow { text-transform: capitalize; font-weight: 600; color: var(--text); display: block; }
@@ -233,6 +239,7 @@ table.sessions td.note { white-space: normal; color: var(--text-dim); font-style
 .day .bar { border-radius: 3px; align-self: stretch; }
 .day .bar.key { background: var(--key); }
 .day .bar.easy { background: var(--easy); }
+.day .bar.gym { background: var(--gym); }
 .day .bar.rest { background: var(--rest); }
 .day .bar.flex { background: var(--flex); }
 .day .bar.race { background: var(--race); width: 4px; }
@@ -252,6 +259,7 @@ table.sessions td.note { white-space: normal; color: var(--text-dim); font-style
 }
 .day .content .tagpill.key { background: var(--key); }
 .day .content .tagpill.easy { background: var(--easy); }
+.day .content .tagpill.gym { background: var(--gym); }
 .day .content .tagpill.rest { background: var(--rest); }
 .day .content .tagpill.flex { background: var(--flex); }
 .day .content .tagpill.race { background: var(--race); }
